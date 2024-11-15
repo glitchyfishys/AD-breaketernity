@@ -11,9 +11,9 @@ export const IP = {
       ? format(gainedInfinityPoints(), 2, 2)
       : "Cannot Crunch"),
     // This effectively hides everything if the player can't actually gain any
-    multValue: () => (Player.canCrunch ? gainedInfinityPoints() : 1),
+    multValue: () => (Player.canCrunch ? gainedInfinityPoints() : DC.D1),
     isActive: () => PlayerProgress.infinityUnlocked() || Player.canCrunch,
-    dilationEffect: () => (Laitela.isRunning ? 0.75 * Effects.product(DilationUpgrade.dilationPenalty) : 1),
+    dilationEffect: () => (Laitela.isRunning ? Decimal.mul(0.75, Effects.product(DilationUpgrade.dilationPenalty)) : DC.D1),
     isDilated: true,
     overlay: ["∞", "<i class='fa-solid fa-layer-group' />"],
   },
@@ -23,7 +23,7 @@ export const IP = {
     fakeValue: DC.D5,
     multValue: () => {
       const div = Effects.min(308, Achievement(103), TimeStudy(111));
-      return Decimal.pow10(player.records.thisInfinity.maxAM.log10() / div - 0.75);
+      return Decimal.pow10(player.records.thisInfinity.maxAM.log10().div(div.sub(0.75)));
     },
     isActive: () => player.break,
     icon: MultiplierTabIcons.CONVERT_FROM("AM"),
@@ -42,7 +42,7 @@ export const IP = {
       const div = Effects.min(308, Achievement(103), TimeStudy(111));
       return `log(AM)/${formatInt(308)} ➜ log(AM)/${format(div, 2, 1)}`;
     },
-    powValue: () => 308 / Effects.min(308, Achievement(103), TimeStudy(111)),
+    powValue: () => Decimal.div(308, Effects.min(308, Achievement(103), TimeStudy(111))),
     isActive: () => Achievement(103).canBeApplied || TimeStudy(111).isBought,
     icon: MultiplierTabIcons.DIVISOR("IP"),
   },
@@ -84,8 +84,8 @@ export const IP = {
   },
   glyph: {
     name: "Equipped Glyphs",
-    multValue: () => Pelle.specialGlyphEffect.infinity.times(Pelle.isDoomed ? 1 : getAdjustedGlyphEffect("infinityIP")),
-    powValue: () => (GlyphAlteration.isAdded("infinity") ? getSecondaryGlyphEffect("infinityIP") : 1),
+    multValue: () => Pelle.specialGlyphEffect.infinity.times(Pelle.isDoomed ? DC.D1 : getAdjustedGlyphEffect("infinityIP")),
+    powValue: () => (GlyphAlteration.isAdded("infinity") ? getSecondaryGlyphEffect("infinityIP") : DC.D1),
     isActive: () => PlayerProgress.realityUnlocked(),
     icon: MultiplierTabIcons.GENERIC_GLYPH,
   },
@@ -100,12 +100,6 @@ export const IP = {
     multValue: () => DC.D1.timesEffectsOf(PelleRifts.vacuum),
     isActive: () => Pelle.isDoomed,
     icon: MultiplierTabIcons.PELLE,
-  },
-  iap: {
-    name: "Shop Tab Purchases",
-    multValue: () => 1,
-    isActive: () => false,
-    icon: MultiplierTabIcons.IAP,
   },
 
   nerfTeresa: {

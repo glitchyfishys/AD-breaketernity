@@ -40,10 +40,10 @@ export const GameSaveSerializer = {
   // confuse your saves with AD saves but can still import AD saves (this will
   // also require changing some other code slightly, particularly decode).
   startingString: {
-    savefile: "AntimatterDimensionsSavefileFormat",
-    "automator script": "AntimatterDimensionsAutomatorScriptFormat",
-    "automator data": "AntimatterDimensionsAutomatorDataFormat",
-    "glyph filter": "AntimatterDimensionsGlyphFilterFormat",
+    savefile: "AntimatterDimensionsBreakEternitySavefileFormat",
+    "automator script": "AntimatterDimensionsBreakEternityAutomatorScriptFormat",
+    "automator data": "AntimatterDimensionsBreakEternityAutomatorDataFormat",
+    "glyph filter": "AntimatterDimensionsBreakEternityGlyphFilterFormat",
   },
   // The ending strings aren't as verbose so that we can save a little space.
   endingString: {

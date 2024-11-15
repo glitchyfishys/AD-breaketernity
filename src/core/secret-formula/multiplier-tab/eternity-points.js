@@ -13,7 +13,7 @@ export const EP = {
     // This effectively hides everything if the player can't actually gain any
     multValue: () => (Player.canEternity ? gainedEternityPoints() : 1),
     isActive: () => PlayerProgress.eternityUnlocked() || Player.canEternity,
-    dilationEffect: () => (Laitela.isRunning ? 0.75 * Effects.product(DilationUpgrade.dilationPenalty) : 1),
+    dilationEffect: () => (Laitela.isRunning ? Decimal.mul(0.75, Effects.product(DilationUpgrade.dilationPenalty)) : DC.D1),
     isDilated: true,
     overlay: ["Δ", "<i class='fa-solid fa-layer-group' />"],
   },
@@ -22,7 +22,7 @@ export const EP = {
     isBase: true,
     fakeValue: DC.D5,
     multValue: () => DC.D5.pow(player.records.thisEternity.maxIP.plus(
-      gainedInfinityPoints()).log10() / (308 - PelleRifts.recursion.effectValue.toNumber()) - 0.7),
+      gainedInfinityPoints()).log10().div(Decimal.sub(308,PelleRifts.recursion.effectValue).sub(0.7))),
     isActive: () => PlayerProgress.eternityUnlocked(),
     icon: MultiplierTabIcons.CONVERT_FROM("IP"),
   },
@@ -37,10 +37,10 @@ export const EP = {
   divisor: {
     name: "Pelle - EP Formula Improvement",
     displayOverride: () => {
-      const div = 308 - PelleRifts.recursion.effectValue.toNumber();
+      const div = Decimal.sub(308,PelleRifts.recursion.effectValue);
       return `log(IP)/${formatInt(308)} ➜ log(IP)/${format(div, 2, 2)}`;
     },
-    powValue: () => 308 / (308 - PelleRifts.recursion.effectValue.toNumber()),
+    powValue: () => Decimal.div(308, Decimal.sub(308,PelleRifts.recursion.effectValue)),
     isActive: () => PelleRifts.recursion.canBeApplied,
     icon: MultiplierTabIcons.DIVISOR("EP"),
   },
@@ -81,12 +81,6 @@ export const EP = {
     multValue: () => PelleRifts.vacuum.milestones[2].effectOrDefault(1),
     isActive: () => PelleRifts.vacuum.milestones[2].canBeApplied,
     icon: MultiplierTabIcons.PELLE,
-  },
-  iap: {
-    name: "Shop Tab Purchases",
-    multValue: () => 1,
-    isActive: () => false,
-    icon: MultiplierTabIcons.IAP,
   },
 
   nerfTeresa: {

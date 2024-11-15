@@ -64,7 +64,7 @@ export const MultiplierTabHelper = {
       effectiveCount = effectiveCount.sub(2);
       effectiveCount = effectiveCount.mul(effects);
       effectiveCount = effectiveCount.mul(getAdjustedGlyphEffect("realitygalaxies")
-        .mul(ImaginaryUpgrade(9).effectOrDefault(0).add(1)));
+        .mul(ImaginaryUpgrade(9).effectOrDefault(DC.D0).add(1)));
       effectiveCount = effectiveCount.mul(Pelle.specialGlyphEffect.power);
 
       // These all need to be framed as INCREASING x/sec tick rate (ie. all multipliers > 1, all logs > 0)
@@ -186,14 +186,14 @@ export const MultiplierTabHelper = {
   blackHoleSpeeds() {
     const currBH = BlackHoles.list
       .filter(bh => bh.isUnlocked)
-      .map(bh => (bh.isActive ? bh.power : 1))
-      .reduce((x, y) => x * y, 1);
+      .map(bh => (bh.isActive ? bh.power : DC.D1))
+      .reduce((x, y) => x.mul(y), DC.D1);
 
     // Calculate an average black hole speedup factor
     const bh1 = BlackHole(1);
     const bh2 = BlackHole(2);
-    const avgBH = 1 + (bh1.isUnlocked ? bh1.dutyCycle * (bh1.power - 1) : 0) +
-        (bh2.isUnlocked ? bh1.dutyCycle * bh2.dutyCycle * bh1.power * (bh2.power - 1) : 0);
+    const avgBH = (bh1.isUnlocked ? bh1.dutyCycle.mul(bh1.power.sub(1)) : DC.D0).add(1).add(
+        (bh2.isUnlocked ? bh1.dutyCycle.mul(bh2.dutyCycle).mul(bh1.power).mul(bh2.power.sub(1)) : DC.D0));
 
     return {
       current: currBH,

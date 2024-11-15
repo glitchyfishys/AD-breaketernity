@@ -39,7 +39,7 @@ export default {
       hadChildEntriesAt: [],
       mouseoverIndex: -1,
       lastNotEmptyAt: 0,
-      dilationExponent: 1,
+      dilationExponent: new Decimal(1),
       isDilated: false,
       // This is used to temporarily remove the transition function from the bar styling when changing the way
       // multipliers are split up; the animation which results from not doing this looks very awkward
@@ -117,7 +117,7 @@ export default {
         }
       }
       this.dilationExponent = this.resource.dilationEffect;
-      this.isDilated = this.dilationExponent !== 1;
+      this.isDilated = this.dilationExponent.neq(1);
       this.calculatePercents();
       this.now = Date.now();
       this.replacePowers = player.options.multiplierTab.replacePowers && this.allowPowerToggle;
@@ -134,30 +134,30 @@ export default {
     },
     calculatePercents() {
       const powList = this.entries.map(e => e.data.pow);
-      const totalPosPow = powList.filter(p => p.gt(1)).reduce((x, y) => x.mul(y), new Decimal(1));
-      const totalNegPow = powList.filter(p => p.lt(1)).reduce((x, y) => x.mul(y), new Decimal(1));
+      const totalPosPow = powList.filter(p => Decimal.gt(p,1)).reduce((x, y) => Decimal.mul(x, y), new Decimal(1));
+      const totalNegPow = powList.filter(p => Decimal.lt(p,1)).reduce((x, y) => Decimal.mul(x, y), new Decimal(1));
       const log10Mult = (this.resource.fakeValue ?? this.resource.mult).log10().div(totalPosPow);
-      const isEmpty = log10Mult.eq(0);
+      const isEmpty = log10Mult.eq_tolerance(0, 0.0001);
       if (!isEmpty) {
         this.lastNotEmptyAt = Date.now();
       }
       let percentList = [];
       for (const entry of this.entries) {
-        const multFrac = log10Mult.eq(0)
+        const multFrac = log10Mult.eq_tolerance(0, 0.0001)
           ? new Decimal()
           : Decimal.log10(entry.data.mult).div(log10Mult);
-        const powFrac = totalPosPow.eq(1)
+        const powFrac = totalPosPow.eq_tolerance(1, 0.0001)
           ? new Decimal()
           : Decimal.log(entry.data.pow, Math.E).div(Decimal.log(totalPosPow, Math.E));
 
         // Handle nerf powers differently from everything else in order to render them with the correct bar percentage
-        const perc = entry.data.pow.gte(1)
+        const perc = Decimal.gte(entry.data.pow,1)
           ? multFrac.div(totalPosPow).add(powFrac.mul(new Decimal(1).sub(new Decimal(1).div(totalPosPow))))
-          : Decimal.log(entry.data.pow, Math.E).div(Decimal.log(totalNegPow)).mul(totalNegPow.sub(1));
+          : Decimal.log(entry.data.pow, Math.E).div(Decimal.log(totalNegPow, Math.E)).mul(totalNegPow.sub(1));
 
         // This is clamped to a minimum of something that's still nonzero in order to show it at <0.1% instead of 0%
         percentList.push(
-          [entry.ignoresNerfPowers, nerfBlacklist.includes(entry.key) ? Decimal.clampMin(perc, 0.0001) : perc]
+          [entry.ignoresNerfPowers, nerfBlacklist.includes(entry.key) ? Decimal.clampMin((Decimal.isNaN(perc) ? DC.D1 : perc), 0.0001) : (Decimal.isNaN(perc) ? DC.D1 : perc)]
         );
       }
 
@@ -168,14 +168,14 @@ export default {
       // power effects already had them applied; there is support in the classes to allow for some to be affected but
       // not others. The only actual case of this occurring is V's Reality not affecting gamespeed for DT, but it was
       // cleaner to adjust the class structure instead of specifically special-casing it here
-      const totalPerc = percentList.filter(p => p[1] > 0).map(p => p[1]).sum();
-      const nerfedPerc = percentList.filter(p => p[1] > 0)
-        .reduce((x, y) => x + (y[0] ? y[1] : y[1] * totalNegPow), 0);
+      const totalPerc = percentList.filter(p => p[1].gt(0)).map(p => p[1]).sum();
+      const nerfedPerc = percentList.filter(p => p[1].gt(0))
+        .reduce((x, y) => Decimal.add(x, y[0] ? y[1] : totalNegPow.mul(y[1])), 0);
       percentList = percentList.map(p => {
-        if (p[1] > 0) {
-          return (p[0] ? p[1] : p[1] * totalNegPow) / nerfedPerc;
+        if (p[1].gt(0) ) {
+          return (p[0] ? p[1] : totalNegPow.mul(p[1])).div(nerfedPerc);
         }
-        return Math.clampMin(p[1] * (totalPerc - nerfedPerc) / totalPerc / totalNegPow, -1);
+        return Decimal.clampMin(totalPerc.sub(nerfedPerc)).div(totalPerc.mul(totalNegPow).mul(p[1]), -1);
       });
       this.percentList = percentList;
       this.rollingAverage.add(isEmpty ? undefined : percentList);
@@ -185,14 +185,14 @@ export default {
     },
     styleObject(index) {
       const netPerc = this.averagedPercentList.sum();
-      const isNerf = this.averagedPercentList[index] < 0;
+      const isNerf = this.averagedPercentList[index].lt(0);
       const iconObj = this.entries[index].icon;
       const percents = this.averagedPercentList[index];
-      const barSize = perc => (perc > 0 ? perc * netPerc : -perc);
+      const barSize = perc => ( Decimal.gt(perc, 0) ? Decimal.mul(perc, netPerc) : Decimal.neg(perc));
       return {
         position: "absolute",
-        top: `${100 * this.averagedPercentList.slice(0, index).map(p => barSize(p)).sum()}%`,
-        height: `${100 * barSize(percents)}%`,
+        top: `${100 * this.averagedPercentList.slice(0, index).map(p => barSize(p)).sum().toNumber()}%`,
+        height: `${barSize(percents).mul(100).toNumber()}%`,
         width: "100%",
         "transition-duration": this.isRecent(this.lastLayoutChange) ? undefined : "0.2s",
         border: percents === 0 ? "" : "0.1rem solid var(--color-text)",
@@ -227,17 +227,17 @@ export default {
     },
     entryString(index) {
       const percents = this.percentList[index];
-      if (percents < 0 && !nerfBlacklist.includes(this.entries[index].key)) {
+      if (Decimal.lt(percents, 0) && !nerfBlacklist.includes(this.entries[index].key)) {
         return this.nerfString(index);
       }
 
       // We want to handle very small numbers carefully to distinguish between "disabled/inactive" and
       // "too small to be relevant"
       let percString;
-      if (percents === 0) percString = formatPercents(0);
-      else if (percents === 1) percString = formatPercents(1);
-      else if (percents < 0.001) percString = `<${formatPercents(0.001, 1)}`;
-      else if (percents > 0.9995) percString = `~${formatPercents(1)}`;
+      if (Decimal.eq_tolerance(percents, 0, 1e-8)) percString = formatPercents(0);
+      else if (Decimal.eq(percents,1)) percString = formatPercents(1);
+      else if (Decimal.lt(percents,0.001)) percString = `<${formatPercents(0.001, 1)}`;
+      else if (Decimal.gt(percents,0.9995)) percString = `~${formatPercents(1)}`;
       else percString = formatPercents(percents, 1);
       percString = padPercents(percString);
 
@@ -253,24 +253,24 @@ export default {
         const values = [];
         const formatFn = x => {
           const isDilated = entry.isDilated;
-          if (isDilated && this.dilationExponent !== 1) {
-            const undilated = this.applyDilationExp(x, 1 / this.dilationExponent);
+          if (isDilated && this.dilationExponent.neq(1)) {
+            const undilated = this.applyDilationExp(x, Decimal.div(1, this.dilationExponent));
             return `${formatX(undilated, 2, 2)} ➜ ${formatX(x, 2, 2)}`;
           }
           return entry.isBase
             ? format(x, 2, 2)
             : formatX(x, 2, 2);
         };
-        if (this.replacePowers && entry.data.pow !== 1) {
+        if (this.replacePowers && Decimal.neq(entry.data.pow, 1)) {
           // For replacing powers with equivalent multipliers, we calculate what the total additional multiplier
           // from ALL power effects taken together would be, and then we split up that additional multiplier
           // proportionally to this individual power's contribution to all positive powers
-          const powFrac = Math.log(entry.data.pow) / Math.log(this.totalPositivePower);
-          const equivMult = this.totalMultiplier.pow((this.totalPositivePower - 1) * powFrac);
+          const powFrac = Decimal.log(entry.data.pow).div(Decimal.log(this.totalPositivePower));
+          const equivMult = this.totalMultiplier.pow(this.totalPositivePower.sub(1).mul(powFrac));
           values.push(formatFn(entry.data.mult.times(equivMult)));
         } else {
           if (Decimal.neq(entry.data.mult, 1)) values.push(formatFn(entry.data.mult));
-          if (entry.data.pow !== 1) values.push(formatPow(entry.data.pow, 2, 3));
+          if (Decimal.neq(entry.data.pow, 1)) values.push(formatPow(entry.data.pow, 2, 3));
         }
         valueStr = values.length === 0 ? "" : `(${values.join(", ")})`;
       }
@@ -291,9 +291,9 @@ export default {
       if (overrideStr) valueStr = `(${overrideStr})`;
       else {
         const values = [];
-        if (this.replacePowers && entry.data.pow !== 1) {
+        if (this.replacePowers && entry.data.pow.neq(1)) {
           const finalMult = this.resource.fakeValue ?? this.resource.mult;
-          values.push(formatFn(finalMult.pow(1 - 1 / entry.data.pow)));
+          values.push(formatFn(finalMult.pow(Decimal.sub(1, Decimal.div(1 / entry.data.pow)) )));
         } else {
           if (Decimal.neq(entry.data.mult, 1)) {
             values.push(formatFn(entry.data.mult));
@@ -317,7 +317,7 @@ export default {
         : `${name}: ${formatX(val, 2, 2)}`;
     },
     applyDilationExp(value, exp) {
-      return Decimal.pow10(value.log10() ** exp);
+      return Decimal.pow10(value.log10().pow(exp));
     },
     dilationString() {
       const resource = this.resource;
@@ -333,9 +333,9 @@ export default {
         const dilProd = this.entries
           .filter(entry => entry.isVisible && entry.isDilated)
           .map(entry => entry.mult)
-          .map(val => this.applyDilationExp(val, 1 / this.dilationExponent))
+          .map(val => this.applyDilationExp(val, Decimal.div(1, this.dilationExponent)))
           .reduce((x, y) => x.times(y), new Decimal(1));
-        beforeMult = dilProd.neq(1) ? dilProd : this.applyDilationExp(baseMult, 1 / this.dilationExponent);
+        beforeMult = dilProd.neq(1) ? dilProd : this.applyDilationExp(baseMult, Decimal.div(1, this.dilationExponent));
         afterMult = resource.mult;
       } else {
         beforeMult = baseMult;
