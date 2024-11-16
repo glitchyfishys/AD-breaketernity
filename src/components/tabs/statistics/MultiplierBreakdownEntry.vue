@@ -144,12 +144,12 @@ export default {
       let percentList = [];
       for (const entry of this.entries) {
         const multFrac = log10Mult.eq_tolerance(0, 0.0001)
-          ? new Decimal()
+        ? new Decimal()
           : Decimal.log10(entry.data.mult).div(log10Mult);
         const powFrac = totalPosPow.eq_tolerance(1, 0.0001)
           ? new Decimal()
           : Decimal.log(entry.data.pow, Math.E).div(Decimal.log(totalPosPow, Math.E));
-
+          
         // Handle nerf powers differently from everything else in order to render them with the correct bar percentage
         const perc = Decimal.gte(entry.data.pow,1)
           ? multFrac.div(totalPosPow).add(powFrac.mul(new Decimal(1).sub(new Decimal(1).div(totalPosPow))))
@@ -175,8 +175,12 @@ export default {
         if (p[1].gt(0) ) {
           return (p[0] ? p[1] : totalNegPow.mul(p[1])).div(nerfedPerc);
         }
+        else if (p[1].eq(0)) {
+          return new Decimal();
+        }
         return Decimal.clampMin(totalPerc.sub(nerfedPerc)).div(totalPerc.mul(totalNegPow).mul(p[1]), -1);
       });
+
       this.percentList = percentList;
       this.rollingAverage.add(isEmpty ? undefined : percentList);
       this.averagedPercentList = this.rollingAverage.average;
